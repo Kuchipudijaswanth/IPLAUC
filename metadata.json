@@ -1,0 +1,5 @@
+{
+  "name": "IPL Auction 2026",
+  "description": "A real-time IPL-style auction simulator with live bidding, team selection, and budget management using Socket.io.",
+  "requestFramePermissions": []
+}

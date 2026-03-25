@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "An IPL Auction room",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "description": "Unique room code" },
+        "status": { "type": "string", "enum": ["waiting", "active", "finished"], "description": "Current status of the auction" },
+        "currentPlayerId": { "type": "string", "description": "ID of the player currently being auctioned" },
+        "currentBid": { "type": "number", "description": "Current highest bid" },
+        "currentBidderId": { "type": "string", "description": "ID of the participant who made the current highest bid" },
+        "timer": { "type": "number", "description": "Seconds remaining for the current player" },
+        "lastBidAt": { "type": "number", "description": "Timestamp of the last bid" }
+      },
+      "required": ["code", "status"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "A player in the auction",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Player name" },
+        "basePrice": { "type": "number", "description": "Starting price in Cr" },
+        "soldPrice": { "type": "number", "description": "Final price the player was sold for" },
+        "soldToTeam": { "type": "string", "description": "Team that bought the player" },
+        "status": { "type": "string", "enum": ["available", "bidding", "sold", "unsold"], "description": "Current status of the player" },
+        "role": { "type": "string", "description": "Player role (Batsman, Bowler, etc.)" }
+      },
+      "required": ["name", "basePrice", "status"]
+    },
+    "Participant": {
+      "title": "Participant",
+      "description": "A participant in a room",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Participant's name" },
+        "teamName": { "type": "string", "description": "Selected IPL team name" },
+        "budget": { "type": "number", "description": "Remaining budget in Cr" },
+        "playersBought": { "type": "array", "items": { "type": "string" }, "description": "List of player IDs bought" }
+      },
+      "required": ["name", "teamName", "budget"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Auction room document"
+    },
+    "/rooms/{roomId}/players/{playerId}": {
+      "schema": "Player",
+      "description": "Players available in the room"
+    },
+    "/rooms/{roomId}/participants/{participantId}": {
+      "schema": "Participant",
+      "description": "Participants in the room"
+    }
+  }
+}
