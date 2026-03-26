@@ -127,7 +127,8 @@ export function JoinRoom({ onJoined }: JoinRoomProps) {
                 />
                 <button
                   onClick={handleJoin}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-black px-8 rounded-2xl transition-all active:scale-95 flex items-center justify-center border border-white/10"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-black px-8 rounded-2xl transition-all active:scale-95 flex items-center justify-center border border-white/10 shrink-0"
+                  aria-label="Join Room"
                 >
                   <LogIn className="w-6 h-6" />
                 </button>

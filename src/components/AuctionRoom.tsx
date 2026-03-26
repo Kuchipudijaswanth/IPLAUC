@@ -133,6 +133,13 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
     socket.emit('place-bid', room.id);
   };
 
+  const skipPlayer = () => {
+    if (participant.id !== room.hostId) return;
+    socket.emit('skip-player', room.id);
+  };
+
+  const isHost = participant.id === room.hostId;
+
   // Dynamic Theme Colors
   const themeColor = myTeam.color;
   const secondaryColor = myTeam.secondaryColor;
@@ -313,6 +320,17 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
                   <span>+ 0.5 CR</span>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </button>
+                
+                {isHost && (
+                  <button
+                    onClick={skipPlayer}
+                    className="bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white font-black px-8 rounded-[32px] transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-500/30 hover:border-red-500 shrink-0"
+                    title="Skip this player (Host only)"
+                  >
+                    <XCircle className="w-6 h-6" />
+                    <span className="text-sm uppercase tracking-wider">Skip</span>
+                  </button>
+                )}
               </div>
             </div>
           ) : room.status === 'finished' ? (
@@ -390,28 +408,53 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
                       </div>
                     </div>
                     
-                    <div className="flex flex-wrap gap-1.5">
-                      {p.playersBought.map(player => (
-                        <div 
-                          key={player.id} 
-                          className={cn(
-                            "w-6 h-6 rounded-md flex items-center justify-center text-[8px] font-black border",
-                            isLeading ? "bg-black/10 border-black/10 text-black/60" : "bg-white/5 border-white/5 text-white/40"
-                          )} 
-                          title={player.name}
-                        >
-                          {player.name[0]}
+                    <div className="space-y-2">
+                      {p.playersBought.length > 0 ? (
+                        <>
+                          <div className={cn("text-[8px] font-bold uppercase tracking-widest mb-2", isLeading ? (['Chennai Super Kings'].includes(team.name) ? "text-black/60" : "text-white/60") : "text-slate-500")}>
+                            Squad ({p.playersBought.length}/11)
+                          </div>
+                          <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                            {p.playersBought.map(player => (
+                              <div 
+                                key={player.id} 
+                                className={cn(
+                                  "flex items-center justify-between p-2 rounded-lg text-[10px]",
+                                  isLeading ? "bg-black/10" : "bg-white/5"
+                                )} 
+                                title={`${player.name} - ${player.role}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className={cn(
+                                    "w-5 h-5 rounded flex items-center justify-center font-black text-[8px] shrink-0",
+                                    isLeading ? "bg-black/20 text-black/60" : "bg-white/10 text-white/60"
+                                  )}>
+                                    {player.name[0]}
+                                  </div>
+                                  <span className={cn("font-bold truncate", isLeading ? (['Chennai Super Kings'].includes(team.name) ? "text-black" : "text-white") : "text-slate-300")}>
+                                    {player.name}
+                                  </span>
+                                </div>
+                                <span className={cn("font-black tabular-nums shrink-0", isLeading ? (['Chennai Super Kings'].includes(team.name) ? "text-black/60" : "text-white/60") : "text-slate-500")}>
+                                  {player.soldPrice?.toFixed(1)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={cn(
+                                "w-6 h-6 rounded-md border border-dashed",
+                                isLeading ? "bg-black/5 border-black/20" : "bg-black/20 border-white/5"
+                              )} 
+                            />
+                          ))}
                         </div>
-                      ))}
-                      {Array.from({ length: Math.max(0, 5 - p.playersBought.length) }).map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={cn(
-                            "w-6 h-6 rounded-md border border-dashed",
-                            isLeading ? "bg-black/5 border-black/20" : "bg-black/20 border-white/5"
-                          )} 
-                        />
-                      ))}
+                      )}
                     </div>
                   </div>
                 );

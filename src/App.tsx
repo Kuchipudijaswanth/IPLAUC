@@ -11,6 +11,22 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Prevent accidental back button navigation
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (room && room.status === 'active') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [room]);
+
+  useEffect(() => {
     const handleRoomCreated = ({ roomId, participant }: { roomId: string, participant: Participant }) => {
       setParticipant(participant);
     };
@@ -33,16 +49,22 @@ export default function App() {
       setTimeout(() => setError(null), 3000);
     };
 
+    const handlePlayerLeft = ({ participantId }: { participantId: string }) => {
+      console.log('Player left:', participantId);
+    };
+
     socket.on('room-created', handleRoomCreated);
     socket.on('room-joined', handleRoomJoined);
     socket.on('room-update', handleRoomUpdate);
     socket.on('error', handleError);
+    socket.on('player-left', handlePlayerLeft);
 
     return () => {
       socket.off('room-created', handleRoomCreated);
       socket.off('room-joined', handleRoomJoined);
       socket.off('room-update', handleRoomUpdate);
       socket.off('error', handleError);
+      socket.off('player-left', handlePlayerLeft);
     };
   }, []);
 

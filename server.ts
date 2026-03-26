@@ -55,7 +55,7 @@ async function startServer() {
     }
   });
 
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
@@ -169,9 +169,64 @@ async function startServer() {
       io.to(roomId).emit("room-update", getRoomData(room));
     });
 
+    socket.on("skip-player", (roomId: string) => {
+      const room = rooms.get(roomId);
+      if (!room || room.hostId !== socket.id || room.status !== 'active') return;
+
+      if (room.timerInterval) clearInterval(room.timerInterval);
+      
+      const player = room.players[room.currentPlayerIndex];
+      player.status = 'unsold';
+      
+      io.to(roomId).emit("player-auction-ended", {
+        player,
+        winnerId: null
+      });
+
+      setTimeout(() => {
+        nextPlayer(roomId);
+      }, 1000);
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
-      // Handle cleanup if needed, but for a simple app we can keep the room state
+      
+      // Find and handle room cleanup
+      rooms.forEach((room, roomId) => {
+        const participant = room.participants.get(socket.id);
+        if (participant) {
+          // Return players to auction pool if participant leaves
+          participant.playersBought.forEach(player => {
+            const originalPlayer = room.players.find(p => p.id === player.id);
+            if (originalPlayer) {
+              originalPlayer.status = 'available';
+              originalPlayer.soldTo = undefined;
+              originalPlayer.soldPrice = undefined;
+            }
+          });
+          
+          // Remove participant
+          room.participants.delete(socket.id);
+          
+          // If current bidder left, reset bid
+          if (room.currentBidderId === socket.id) {
+            const currentPlayer = room.players[room.currentPlayerIndex];
+            if (currentPlayer) {
+              room.currentBid = currentPlayer.basePrice;
+              room.currentBidderId = null;
+            }
+          }
+          
+          // Notify others
+          io.to(roomId).emit("player-left", { participantId: socket.id });
+          io.to(roomId).emit("room-update", getRoomData(room));
+          
+          // If host left and room is waiting, delete room
+          if (room.hostId === socket.id && room.status === 'waiting') {
+            rooms.delete(roomId);
+          }
+        }
+      });
     });
   });
 
