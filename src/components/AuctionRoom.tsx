@@ -83,6 +83,7 @@ const useAuctionSounds = () => {
 
 export function AuctionRoom({ room, participant }: AuctionRoomProps) {
   const [timeLeft, setTimeLeft] = useState(room.timer);
+  const [disconnectedPlayers, setDisconnectedPlayers] = useState<Set<string>>(new Set());
   const { initAudio, playTick, playHammer, muted, setMuted } = useAuctionSounds();
   const lastPlayerStatus = useRef<string | null>(null);
 
@@ -95,9 +96,16 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
 
   useEffect(() => {
     const handleTimer = (time: number) => setTimeLeft(time);
+    const handlePlayerDisconnected = ({ participantId }: { participantId: string }) => {
+      setDisconnectedPlayers(prev => new Set(prev).add(participantId));
+    };
+    
     socket.on('timer-update', handleTimer);
+    socket.on('player-disconnected', handlePlayerDisconnected);
+    
     return () => {
       socket.off('timer-update', handleTimer);
+      socket.off('player-disconnected', handlePlayerDisconnected);
     };
   }, []);
 
@@ -191,7 +199,7 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
           <div className="h-10 w-px bg-white/10" />
           <div className="flex flex-col items-end">
             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Squad Size</div>
-            <div className="text-2xl font-black text-white tabular-nums leading-none">{participant.playersBought.length}<span className="text-slate-600 text-xs">/11</span></div>
+            <div className="text-2xl font-black text-white tabular-nums leading-none">{participant.playersBought.length}<span className="text-slate-600 text-xs">/15</span></div>
           </div>
         </div>
       </header>
@@ -321,7 +329,7 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </button>
                 
-                {isHost && (
+                {isHost && room.currentBidderId === null && (
                   <button
                     onClick={skipPlayer}
                     className="bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white font-black px-8 rounded-[32px] transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-500/30 hover:border-red-500 shrink-0"
@@ -367,20 +375,27 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
                 const team = IPL_TEAMS.find(t => t.name === p.teamName) || IPL_TEAMS[0];
                 const isLeading = room.currentBidderId === p.id;
                 const isMe = p.id === participant.id;
+                const isDisconnected = disconnectedPlayers.has(p.id);
                 
                 return (
                   <div 
                     key={p.id} 
                     className={cn(
-                      "p-4 rounded-2xl border transition-all duration-500",
+                      "p-4 rounded-2xl border transition-all duration-500 relative",
                       isLeading ? "shadow-xl" : "bg-white/[0.03] border-white/5",
-                      isMe && !isLeading && "border-white/20"
+                      isMe && !isLeading && "border-white/20",
+                      isDisconnected && "opacity-60"
                     )}
                     style={{ 
                       backgroundColor: isLeading ? team.color : undefined,
                       borderColor: isLeading ? team.color : undefined
                     }}
                   >
+                    {isDisconnected && (
+                      <div className="absolute top-2 right-2 px-2 py-0.5 bg-orange-500/20 border border-orange-500/40 rounded text-[8px] font-black uppercase tracking-wider text-orange-400">
+                        Disconnected
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div 
@@ -412,7 +427,7 @@ export function AuctionRoom({ room, participant }: AuctionRoomProps) {
                       {p.playersBought.length > 0 ? (
                         <>
                           <div className={cn("text-[8px] font-bold uppercase tracking-widest mb-2", isLeading ? (['Chennai Super Kings'].includes(team.name) ? "text-black/60" : "text-white/60") : "text-slate-500")}>
-                            Squad ({p.playersBought.length}/11)
+                            Squad ({p.playersBought.length}/15)
                           </div>
                           <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
                             {p.playersBought.map(player => (

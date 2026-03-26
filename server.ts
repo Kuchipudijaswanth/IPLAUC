@@ -100,11 +100,34 @@ async function startServer() {
       if (!room) {
         return socket.emit("error", "Room not found");
       }
+
+      // Check if participant already exists (rejoining)
+      let participant = Array.from(room.participants.values()).find(p => p.name === name);
+      
+      if (participant) {
+        // Rejoining - update socket ID
+        const oldId = participant.id;
+        room.participants.delete(oldId);
+        participant.id = socket.id;
+        room.participants.set(socket.id, participant);
+        
+        // Update current bidder if it was this participant
+        if (room.currentBidderId === oldId) {
+          room.currentBidderId = socket.id;
+        }
+        
+        socket.join(roomId);
+        socket.emit("room-joined", { roomId, participant });
+        io.to(roomId).emit("room-update", getRoomData(room));
+        return;
+      }
+
+      // New participant joining
       if (room.status !== 'waiting') {
         return socket.emit("error", "Auction already started");
       }
 
-      const participant: Participant = {
+      participant = {
         id: socket.id,
         name,
         teamName: '',
@@ -149,8 +172,18 @@ async function startServer() {
       if (!participant) return;
 
       const bidAmount = room.currentBid + 0.5;
+      
+      // Calculate minimum budget needed for remaining slots
+      const playersNeeded = 15 - participant.playersBought.length;
+      const minBudgetNeeded = playersNeeded * 0.5; // Minimum 0.5 CR per player
+      
       if (participant.budget < bidAmount) {
         return socket.emit("error", "Insufficient budget");
+      }
+      
+      // Check if bidding would leave enough budget for remaining players
+      if (participant.budget - bidAmount < minBudgetNeeded - 0.5) {
+        return socket.emit("error", `Need to save budget for ${playersNeeded} more players`);
       }
 
       if (room.currentBidderId === socket.id) {
@@ -195,6 +228,19 @@ async function startServer() {
       rooms.forEach((room, roomId) => {
         const participant = room.participants.get(socket.id);
         if (participant) {
+          
+          // If auction is active, keep participant data for rejoining
+          if (room.status === 'active') {
+            console.log(`Participant ${participant.name} disconnected during active auction, keeping data for rejoin`);
+            // Don't remove participant, just notify others
+            io.to(roomId).emit("player-disconnected", { 
+              participantId: socket.id,
+              participantName: participant.name 
+            });
+            return;
+          }
+          
+          // If waiting or finished, remove participant
           // Return players to auction pool if participant leaves
           participant.playersBought.forEach(player => {
             const originalPlayer = room.players.find(p => p.id === player.id);
